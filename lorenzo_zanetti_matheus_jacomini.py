@@ -168,8 +168,18 @@ def insercao_led(registro: str, dados: io.TextIOWrapper) -> None:
         dados.write(b'*') # Marca o espaço livre
         atualiza_led(dados, novo_led) # Atualiza a LED
 
-    
+    reg = ''
+    letra = registro[0]
+    cont = 0
+    while letra != '|':
+        reg += letra
+        cont += 1
+        letra = registro[cont]
 
+    print(f'Inserção do registro de chave "{reg}" ({len(registro)} bytes)')
+    print(f'Tamanho do espaço reutilizado: {tam} bytes (Sobra de {tam - len(registro) - 2} bytes)')
+    print(f'Local: offset = {cab} bytes (0x{cab:04X})')
+    
 
 def atualiza_led(dados: io.TextIOWrapper, offset: int) -> None:
     '''
