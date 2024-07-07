@@ -8,7 +8,7 @@ def le_cabecalho(dados: io.TextIOWrapper) -> int:
     '''
     dados.seek(0, os.SEEK_SET) # Volta para o início do arquivo
     header = dados.read(4)
-    return int.from_bytes(header)
+    return int.from_bytes(header, signed=True)
 
 def opera_dados(arquivo_operacoes: io.TextIOWrapper, dados: io.TextIOWrapper):
     '''
@@ -65,20 +65,21 @@ def mostrar_led(dados: io.TextIOWrapper) -> None:
     Total: 3 espacos disponiveis.
     '''
     LED = 'LED'
-    offset = le_cabecalho(dados)
-    espacos = 0
+    offset = le_cabecalho(dados) # Lê o valor do topo da lista de espaços livres (LED)
+    espacos = 0 # Contador de espaços livres
 
-    while offset != 4294967295:
+    while offset != -1: # este numero é o maior numero que pode ser representado por 4 bytes, logo é o limite do offset utilizado nesse método de organização e considerado nosso fim de pilha
         dados.seek(offset,os.SEEK_SET)
-        byt = dados.read(2)
+        byt = dados.read(2) # Lê o tamanho do espaço livre
         tamanho = int.from_bytes(byt)
-        LED += f' -> [offset: {offset}, tam: {tamanho}]'
-        dados.seek(1, os.SEEK_CUR)
-        byt = dados.read(4)
-        offset = int.from_bytes(byt)
+        LED += f' -> [offset: {offset}, tam: {tamanho}]' # Adiciona o offset e o tamanho do espaço livre na string LED
+        dados.seek(1, os.SEEK_CUR) # Pula o caractere '*' que marca o espaço livre
+        byt = dados.read(4) # Lê o próximo offset
+        offset = int.from_bytes(byt, signed=True)
+        espacos += 1
 
         
-    LED += f' -> [offset: -1]\nTotal: {espacos} espacos disponiveis'
+    LED += f' -> [offset: -1]\nTotal: {espacos} espacos disponiveis' # Adiciona o offset -1 e o total de espaços livres na string LED
     print(LED)
 
 
