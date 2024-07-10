@@ -116,6 +116,8 @@ def insercao_fim(registro: str, dados: io.TextIOWrapper) -> None:
     tamanho = len(registro) # Calcula o tamanho do registro
     dados.write(tamanho.to_bytes(2)) # Escreve o tamanho do registro
     dados.write(registro.encode()) # Escreve o registro no arquivo
+
+    # printa a mensagem
     reg = ''
     letra = registro[0]
     cont = 0
@@ -168,6 +170,7 @@ def insercao_led(registro: str, dados: io.TextIOWrapper) -> None:
         dados.write(b'*') # Marca o espaço livre
         atualiza_led(dados, novo_led) # Atualiza a LED
 
+    # printa a mensagem
     reg = ''
     letra = registro[0]
     cont = 0
@@ -239,7 +242,8 @@ def remocao_registro(chave: int, dados: io.TextIOWrapper):
     Remove o registro com a chave especificada do arquivo de dados.dat utilizando
     a estratégia 'worst-fit'.
     '''
-    pass
+    # busca o registro
+
 
 
 def mostrar_led(dados: io.TextIOWrapper) -> None:
