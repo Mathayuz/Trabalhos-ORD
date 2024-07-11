@@ -26,24 +26,23 @@ def opera_dados(arquivo_operacoes: io.TextIOWrapper, dados: io.TextIOWrapper):
             #remocao_registro(int(linha[2:]), dados)
             print("forggers")
 
-def busca_chave(chave: int, dados: io.TextIOWrapper):
+def busca(chave: int, dados: io.TextIOWrapper) -> tuple[str, int, str]:
     '''
     Busca um registro com a chave especificada no arquivo de dados.dat.
     '''
     dados.seek(4, os.SEEK_SET) # Coloca o seek no primeiro registro (pula o cabeçalho)
     while True:
         offset = dados.tell() # Salva a posição atual do ponteiro
-        tamanho = int.from_bytes(dados.read(2))
+        tamanho = int.from_bytes(dados.read(2)) # type: ignore
         
         if tamanho == 0: # Se o tamanho do registro for 0, chegou ao final do arquivo
-            print('Registro não encontrado')
-            return
+            return ('Registro não encontrado', 0)
         
         identificador = -1
         aux = ''
         leitura = dados.read(1)
         while leitura != b'|': # Lê o identificador do registro
-            aux += leitura.decode()
+            aux += leitura.decode() # type: ignore
             leitura = dados.read(1)
         
         if aux[0] == '*': # Se o registro estiver marcado como removido, pula para o próximo registro
@@ -51,12 +50,22 @@ def busca_chave(chave: int, dados: io.TextIOWrapper):
         else: # Caso contrário, converte o identificador para inteiro
             identificador = int(aux)
 
-        if identificador == chave:
-            print(f'Busca pelo registro com chave {chave} encontrada.')
+        if identificador == chave: # Se o identificador do registro for igual à chave, retorna o registro
             dados.seek(offset + 2, os.SEEK_SET) # Voltar para o início do registro caso encontrado
-            print(f'{dados.read(tamanho).decode()} ({tamanho} bytes)')
-            return
+            return (dados.read(tamanho).decode(), tamanho, offset)
         dados.seek(offset + 2 + tamanho) # Pula para o próximo registro
+
+def busca_chave(chave: int, dados: io.TextIOWrapper) -> None:
+    '''
+    Busca um registro com a chave especificada no arquivo de dados.dat e imprime o registro no terminal.
+    '''
+    registro, tamanho, off = busca(chave, dados)
+    if tamanho == 0:
+        print(registro)
+    else:
+        print(f'Busca pelo registro com chave "{chave}"')
+        print(f'{registro} ({tamanho} bytes)') # type: ignore
+        return
 
 def mostrar_led(dados: io.TextIOWrapper) -> None:
     '''

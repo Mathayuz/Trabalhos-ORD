@@ -41,14 +41,14 @@ def le_cabecalho(dados: io.TextIOWrapper) -> int:
     '''
     dados.seek(0, os.SEEK_SET) # Volta para o início do arquivo
     header = dados.read(4)
-    return int.from_bytes(header, signed=True)
+    return int.from_bytes(header, signed=True, byteorder='big')
 
 def escreve_cabecalho(dados: io.TextIOWrapper, topo: int) -> None:
     '''
     Escreve o valor do topo da lista de espaços livres (LED) no cabeçalho do arquivo de dados.dat.
     '''
     dados.seek(0, os.SEEK_SET) # Volta para o início do arquivo
-    dados.write(topo.to_bytes(4, signed=True)) # type: ignore
+    dados.write(topo.to_bytes(4, signed=True, byteorder='big'))
 
 def opera_dados(arquivo_operacoes: io.TextIOWrapper, dados: io.TextIOWrapper):
     '''
@@ -63,37 +63,46 @@ def opera_dados(arquivo_operacoes: io.TextIOWrapper, dados: io.TextIOWrapper):
         elif comando == 'r':
             remocao_registro(int(linha[2:]), dados)
 
-def busca_chave(chave: int, dados: io.TextIOWrapper) -> None:
+def busca(chave: int, dados: io.TextIOWrapper) -> tuple[str, int, str]:
     '''
     Busca um registro com a chave especificada no arquivo de dados.dat.
     '''
     dados.seek(4, os.SEEK_SET) # Coloca o seek no primeiro registro (pula o cabeçalho)
     while True:
         offset = dados.tell() # Salva a posição atual do ponteiro
-        tamanho = int.from_bytes(dados.read(2)) # type: ignore
+        tamanho = int.from_bytes(dados.read(2), byteorder='big')
         
         if tamanho == 0: # Se o tamanho do registro for 0, chegou ao final do arquivo
-            print('Registro não encontrado')
-            return
+            return ('Registro não encontrado', 0, '')
         
         identificador = -1
-        aux = ''
+        aux: bytes = b'' # Inicializa a variável auxiliar
         leitura = dados.read(1)
         while leitura != b'|': # Lê o identificador do registro
-            aux += leitura.decode() # type: ignore
+            aux += leitura
             leitura = dados.read(1)
         
-        if aux[0] == '*': # Se o registro estiver marcado como removido, pula para o próximo registro
+        if aux.startswith(b'*'):
             identificador = -1
         else: # Caso contrário, converte o identificador para inteiro
-            identificador = int(aux)
+            identificador = int(aux.decode())
 
-        if identificador == chave:
-            print(f'Busca pelo registro com chave {chave} encontrada.')
+        if identificador == chave: # Se o identificador do registro for igual à chave, retorna o registro
             dados.seek(offset + 2, os.SEEK_SET) # Voltar para o início do registro caso encontrado
-            print(f'{dados.read(tamanho).decode()} ({tamanho} bytes)') # type: ignore
-            return
+            return (dados.read(tamanho).decode(), tamanho, offset)
         dados.seek(offset + 2 + tamanho) # Pula para o próximo registro
+
+def busca_chave(chave: int, dados: io.TextIOWrapper) -> None:
+    '''
+    Busca um registro com a chave especificada no arquivo de dados.dat e imprime o registro no terminal.
+    '''
+    registro, tamanho, off = busca(chave, dados)
+    if tamanho == 0:
+        print(registro)
+    else:
+        print(f'Busca pelo registro com chave "{chave}"')
+        print(f'{registro} ({tamanho} bytes)') # type: ignore
+        return
     
 def insercao_registro(registro: str, dados: io.TextIOWrapper):
     '''
@@ -114,17 +123,11 @@ def insercao_fim(registro: str, dados: io.TextIOWrapper) -> None:
     '''
     dados.seek(0, os.SEEK_END) # Coloca o seek no final do arquivo
     tamanho = len(registro) # Calcula o tamanho do registro
-    dados.write(tamanho.to_bytes(2)) # Escreve o tamanho do registro
+    dados.write(tamanho.to_bytes(2, byteorder='big')) # Escreve o tamanho do registro
     dados.write(registro.encode()) # Escreve o registro no arquivo
 
     # printa a mensagem
-    reg = ''
-    letra = registro[0]
-    cont = 0
-    while letra != '|':
-        reg += letra
-        cont += 1
-        letra = registro[cont]
+    reg = registro.split('|')[0]
 
     print(f'Inserção do registro de chave "{reg}" ({tamanho} bytes)')
     print('Local: fim do arquivo')
@@ -139,7 +142,7 @@ def insercao_led(registro: str, dados: io.TextIOWrapper) -> None:
         tam = -1
     else: # Se a LED não estiver vazia, lê o tamanho do primeiro espaço livre
         dados.seek(cab, os.SEEK_SET) # Coloca o seek no primeiro espaço livre
-        tam = int.from_bytes(dados.read(2)) # Lê o tamanho do espaço livre
+        tam = int.from_bytes(dados.read(2), byteorder='big') # Lê o tamanho do espaço livre
 
     if tam < len(registro): # Se o espaço livre for menor que o registro, não é possível inserir
         raise ValueError('Espaço insuficiente para inserir o registro.')
@@ -147,37 +150,31 @@ def insercao_led(registro: str, dados: io.TextIOWrapper) -> None:
     elif tam - len(registro) < 12: # Se o espaço livre for suficiente, mas restar menos de 12 bytes, o espaço restante será preenchido.
         dados.seek(1, os.SEEK_CUR) # Pula o caractere '*' que marca o espaço livre
         prox_led = dados.read(4) # lê o próximo offset da LED
-        escreve_cabecalho(dados, int.from_bytes(prox_led, signed=True)) # Atualiza o topo da LED
+        escreve_cabecalho(dados, int.from_bytes(prox_led, signed=True, byteorder='big')) # Atualiza o topo da LED
 
         dados.seek(cab, os.SEEK_SET) # Volta para o início do espaço livre
         dados.read(2) # Pula o tamanho do espaço livre
-        registro = registro.encode() # Converte o registro para bytes
-        registro = registro.ljust(tam, b'\0') # preenche o espaço restante com bytes nulos
-        dados.write(registro) # Escreve o registro no espaço livre
+        registrobyte = registro.encode() # Converte o registro para bytes
+        registrobyte = registrobyte.ljust(tam, b'\0') # preenche o espaço restante com bytes nulos
+        dados.write(registrobyte) # Escreve o registro no espaço livre
 
     else: # Se o espaço livre for suficiente e restar mais de 12 bytes, o espaço será dividido.
         dados.seek(1, os.SEEK_CUR) # Pula o caractere '*' que marca o espaço livre
         prox_led = dados.read(4) # lê o próximo offset da LED
-        escreve_cabecalho(dados, int.from_bytes(prox_led, signed=True)) # Atualiza o topo da LED
+        escreve_cabecalho(dados, int.from_bytes(prox_led, signed=True, byteorder='big')) # Atualiza o topo da LED
         
         dados.seek(cab, os.SEEK_SET) # Volta para o início do espaço livre
-        dados.write((len(registro)).to_bytes(2)) # Escreve o tamanho do novo registro
+        dados.write((len(registro)).to_bytes(2, byteorder='big')) # Escreve o tamanho do novo registro
         dados.write(registro.encode()) # Escreve o registro no espaço livre
 
         novo_led = cab + len(registro) + 2 # Calcula o offset do novo espaço livre
         dados.seek(novo_led, os.SEEK_SET) # Coloca o seek no novo espaço livre
-        dados.write((tam - len(registro) - 2).to_bytes(2)) # Escreve o tamanho do novo espaço livre
+        dados.write((tam - len(registro) - 2).to_bytes(2, byteorder='big')) # Escreve o tamanho do novo espaço livre
         dados.write(b'*') # Marca o espaço livre
         atualiza_led(dados, novo_led) # Atualiza a LED
 
     # printa a mensagem
-    reg = ''
-    letra = registro[0]
-    cont = 0
-    while letra != '|':
-        reg += letra
-        cont += 1
-        letra = registro[cont]
+    reg = registro.split('|')[0]
 
     print(f'Inserção do registro de chave "{reg}" ({len(registro)} bytes)')
     print(f'Tamanho do espaço reutilizado: {tam} bytes (Sobra de {tam - len(registro) - 2} bytes)')
@@ -189,7 +186,7 @@ def atualiza_led(dados: io.TextIOWrapper, offset: int) -> None:
     Atualiza a lista de espaços livres (LED) inserindo um novo espaço livre. A LED é organizada em ordem decrescente.
     '''
     dados.seek(offset, os.SEEK_SET) # Coloca o seek no novo espaço livre
-    tam = int.from_bytes(dados.read(2)) # Lê o tamanho do novo espaço livre
+    tam = int.from_bytes(dados.read(2), byteorder='big') # Lê o tamanho do novo espaço livre
 
     led = le_cabecalho(dados) # Lê o valor do topo da LED
     tam_led = -1 # Inicializa o tamanho da LED
@@ -197,39 +194,39 @@ def atualiza_led(dados: io.TextIOWrapper, offset: int) -> None:
     if led == -1: # Se a LED estiver vazia, o novo espaço livre será o único
         escreve_cabecalho(dados, offset) # Atualiza o topo da LED
         dados.seek(offset + 3, os.SEEK_SET) # Pula o tamanho do espaço livre e o caractere '*'
-        dados.write(led.to_bytes(4, signed=True)) # Escreve -1 no próximo offset da LED
+        dados.write(led.to_bytes(4, signed=True, byteorder='big')) # Escreve -1 no próximo offset da LED
         return
     else:
         dados.seek(led, os.SEEK_SET)
-        tam_led = int.from_bytes(dados.read(2)) # Lê o tamanho do primeiro espaço livre da LED
+        tam_led = int.from_bytes(dados.read(2), byteorder='big') # Lê o tamanho do primeiro espaço livre da LED
 
     if tam >= tam_led: # Se o novo espaço livre for maior que o primeiro espaço livre da LED, o novo espaço será o primeiro
         escreve_cabecalho(dados, offset) # Atualiza o topo da LED
         dados.seek(offset + 3, os.SEEK_SET) # Pula o tamanho do espaço livre e o caractere '*'
-        dados.write(led.to_bytes(4, signed=True)) # Escreve o próximo offset da LED
+        dados.write(led.to_bytes(4, signed=True, byteorder='big')) # Escreve o próximo offset da LED
         return
     
     # aqui, o seek está logo após o tamanho do primeiro espaço livre da LED
     while True: # Procura o lugar correto para inserir o novo espaço livre
         dados.seek(1, os.SEEK_CUR) # Pula o caractere '*' que marca o espaço livre
-        prox_led = int.from_bytes(dados.read(4), signed=True) # Lê o próximo offset da LED
+        prox_led = int.from_bytes(dados.read(4), signed=True, byteorder='big') # Lê o próximo offset da LED
 
         if prox_led == -1: # Se o próximo offset for -1, o novo espaço livre será o último
             dados.seek(-4, os.SEEK_CUR) # Volta para o próximo offset
-            dados.write(offset.to_bytes(4, signed=True)) # Escreve o offset do novo espaço livre
+            dados.write(offset.to_bytes(4, signed=True, byteorder='big')) # Escreve o offset do novo espaço livre
             dados.seek(offset + 3, os.SEEK_SET) # Pula o tamanho do espaço livre e o caractere '*'
-            dados.write(-1 .to_bytes(4, signed=True)) # Escreve -1 no próximo offset da LED
+            dados.write(-1 .to_bytes(4, signed=True, byteorder='big')) # Escreve -1 no próximo offset da LED
             return
         
         else: # Se o próximo offset não for -1, lê o tamanho do próximo espaço livre
             dados.seek(prox_led, os.SEEK_SET)
-            tam_prox_led = int.from_bytes(dados.read(2)) # Lê o tamanho do próximo espaço livre
+            tam_prox_led = int.from_bytes(dados.read(2), byteorder='big') # Lê o tamanho do próximo espaço livre
             
             if tam >= tam_prox_led: # Se o novo espaço livre for maior que o próximo espaço livre, insere o novo espaço livre
                 dados.seek(led + 3, os.SEEK_SET) # Volta para o primeiro espaço livre da LED
-                dados.write(offset.to_bytes(4, signed=True)) # Escreve o offset do novo espaço livre
+                dados.write(offset.to_bytes(4, signed=True, byteorder='big')) # Escreve o offset do novo espaço livre
                 dados.seek(offset + 3, os.SEEK_SET) # Pula o tamanho do espaço livre e o caractere '*'
-                dados.write(prox_led.to_bytes(4, signed=True)) # Escreve o próximo offset do novo espaço livre
+                dados.write(prox_led.to_bytes(4, signed=True, byteorder='big')) # Escreve o próximo offset do novo espaço livre
                 return
 
             else: # Se o novo espaço livre não for maior que o próximo espaço livre, continua procurando
@@ -241,9 +238,30 @@ def remocao_registro(chave: int, dados: io.TextIOWrapper):
     '''
     Remove o registro com a chave especificada do arquivo de dados.dat utilizando
     a estratégia 'worst-fit'.
+    printa na forma:
+    Remoção do registro de chave "99" 
+    Registro removido! (94 bytes) 
+    Local: offset = 6290 bytes (0x1892)
     '''
     # busca o registro
+    registro, tamanho, offset = busca(chave, dados)
+    if tamanho == 0: # Se o registro não for encontrado, não é possível remover
+        print(f'Remoção do registro de chave "{chave}"')
+        print('Erro: registro não encontrado!')
+        return
+    
+    # marca o registro como removido
+    dados.seek(offset, os.SEEK_SET) # Coloca o seek no registro a ser removido
+    dados.seek(2, os.SEEK_CUR) # Pula o tamanho do registro
+    dados.write(b'*') # Marca o registro como removido
 
+    # atualiza a LED
+    atualiza_led(dados, offset)
+
+    # printa a mensagem
+    print(f'Remoção do registro de chave "{chave}"')
+    print(f'Registro removido! ({tamanho} bytes)')
+    print(f'Local: offset = {offset} bytes (0x{offset:04X})')
 
 
 def mostrar_led(dados: io.TextIOWrapper) -> None:
@@ -259,11 +277,11 @@ def mostrar_led(dados: io.TextIOWrapper) -> None:
     while offset != -1: # este numero é o maior numero que pode ser representado por 4 bytes, logo é o limite do offset utilizado nesse método de organização e considerado nosso fim de pilha
         dados.seek(offset,os.SEEK_SET)
         byt = dados.read(2) # Lê o tamanho do espaço livre
-        tamanho = int.from_bytes(byt)
+        tamanho = int.from_bytes(byt, byteorder='big')
         LED += f' -> [offset: {offset}, tam: {tamanho}]' # Adiciona o offset e o tamanho do espaço livre na string LED
         dados.seek(1, os.SEEK_CUR) # Pula o caractere '*' que marca o espaço livre
         byt = dados.read(4) # Lê o próximo offset
-        offset = int.from_bytes(byt, signed=True)
+        offset = int.from_bytes(byt, signed=True, byteorder='big')
         espacos += 1
 
         
@@ -276,9 +294,8 @@ def main() -> None:
     Função principal do programa.
     '''
     modoDeUso = 'Modo de uso: \n-> python lorenzo_zanetti_matheus_jacomini.py -e arquivo_operacoes\n-> python lorenzo_zanetti_matheus_jacomini.py -p'
-
-    if len(argv) != 3 or len(argv) != 2:
-        raise TypeError('Número incorreto de argumentos.'+ modoDeUso)
+    if len(argv) > 3 or len(argv) < 2:
+        raise TypeError('Número incorreto de argumentos.\n'+ modoDeUso)
     elif argv[1] == '-e':
         opera_dados(open(argv[2], 'r'), open('dados.dat', 'r+b')) # type: ignore
     elif argv[1] == '-p':
