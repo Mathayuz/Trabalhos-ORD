@@ -98,10 +98,10 @@ def busca_chave(chave: int, dados: io.TextIOWrapper) -> None:
     '''
     registro, tamanho, off = busca(chave, dados)
     if tamanho == 0:
-        print(registro)
+        print(registro + '\n')
     else:
         print(f'Busca pelo registro com chave "{chave}"')
-        print(f'{registro} ({tamanho} bytes)') # type: ignore
+        print(f'{registro} ({tamanho} bytes)\n') # type: ignore
         return
     
 def insercao_registro(registro: str, dados: io.TextIOWrapper):
@@ -130,7 +130,7 @@ def insercao_fim(registro: str, dados: io.TextIOWrapper) -> None:
     reg = registro.split('|')[0]
 
     print(f'Inserção do registro de chave "{reg}" ({tamanho} bytes)')
-    print('Local: fim do arquivo')
+    print('Local: fim do arquivo\n')
 
 
 def insercao_led(registro: str, dados: io.TextIOWrapper) -> None:
@@ -178,7 +178,7 @@ def insercao_led(registro: str, dados: io.TextIOWrapper) -> None:
 
     print(f'Inserção do registro de chave "{reg}" ({len(registro)} bytes)')
     print(f'Tamanho do espaço reutilizado: {tam} bytes (Sobra de {tam - len(registro) - 2} bytes)')
-    print(f'Local: offset = {cab} bytes (0x{cab:04X})')
+    print(f'Local: offset = {cab} bytes (0x{cab:04X})\n')
     
 
 def atualiza_led(dados: io.TextIOWrapper, offset: int) -> None:
@@ -247,7 +247,7 @@ def remocao_registro(chave: int, dados: io.TextIOWrapper):
     registro, tamanho, offset = busca(chave, dados)
     if tamanho == 0: # Se o registro não for encontrado, não é possível remover
         print(f'Remoção do registro de chave "{chave}"')
-        print('Erro: registro não encontrado!')
+        print('Erro: registro não encontrado!\n')
         return
     
     # marca o registro como removido
@@ -261,7 +261,7 @@ def remocao_registro(chave: int, dados: io.TextIOWrapper):
     # printa a mensagem
     print(f'Remoção do registro de chave "{chave}"')
     print(f'Registro removido! ({tamanho} bytes)')
-    print(f'Local: offset = {offset} bytes (0x{offset:04X})')
+    print(f'Local: offset = {offset} bytes (0x{offset:04X})\n')
 
 
 def mostrar_led(dados: io.TextIOWrapper) -> None:
