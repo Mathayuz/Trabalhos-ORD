@@ -54,14 +54,18 @@ def opera_dados(arquivo_operacoes: io.TextIOWrapper, dados: io.TextIOWrapper):
     '''
     Executa as operações de busca, inserção e remoção de registros no arquivo de dados.dat.
     '''
-    for linha in arquivo_operacoes:
+    linha = arquivo_operacoes.readline() # Lê a primeira linha do arquivo de operações
+    while 'i' in linha or 'b' in linha or 'r' in linha: # Lê as linhas do arquivo de operações até encontrar um comando válido
         comando = linha[0]
         if comando == 'b':
             busca_chave(int(linha[2:]), dados)
         elif comando == 'i':
-            insercao_registro(linha[2:], dados)
+            insercao_registro(linha[2:].replace('\n', ''), dados)
         elif comando == 'r':
             remocao_registro(int(linha[2:]), dados)
+        linha = arquivo_operacoes.readline() # Lê a próxima linha do arquivo de operações
+
+    arquivo_operacoes.close() # Fecha o arquivo de operações
 
 def busca(chave: int, dados: io.TextIOWrapper) -> tuple[str, int, str]:
     '''
