@@ -225,7 +225,7 @@ def atualiza_led(dados: io.TextIOWrapper, offset: int) -> None:
             dados.seek(prox_led, os.SEEK_SET)
             tam_prox_led = int.from_bytes(dados.read(2)) # Lê o tamanho do próximo espaço livre
             
-            if tam >= tam_led: # Se o novo espaço livre for maior que o próximo espaço livre, o novo espaço será inserido
+            if tam >= tam_prox_led: # Se o novo espaço livre for maior que o próximo espaço livre, insere o novo espaço livre
                 dados.seek(led + 3, os.SEEK_SET) # Volta para o primeiro espaço livre da LED
                 dados.write(offset.to_bytes(4, signed=True)) # Escreve o offset do novo espaço livre
                 dados.seek(offset + 3, os.SEEK_SET) # Pula o tamanho do espaço livre e o caractere '*'
