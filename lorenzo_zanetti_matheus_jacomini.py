@@ -77,7 +77,7 @@ def busca(chave: int, dados: io.TextIOWrapper) -> tuple[str, int, str]:
         tamanho = int.from_bytes(dados.read(2), byteorder='big')
         
         if tamanho == 0: # Se o tamanho do registro for 0, chegou ao final do arquivo
-            return ('Registro não encontrado', 0, '')
+            return ('registro não encontrado.', 0, '')
         
         identificador = -1
         aux: bytes = b'' # Inicializa a variável auxiliar
@@ -102,7 +102,8 @@ def busca_chave(chave: int, dados: io.TextIOWrapper) -> None:
     '''
     registro, tamanho, off = busca(chave, dados)
     if tamanho == 0:
-        print(registro + '\n')
+        print(f'Busca pelo registro com chave "{chave}"')
+        print(registro + '\n') # Se o registro não for encontrado, imprime a mensagem de erro
     else:
         print(f'Busca pelo registro com chave "{chave}"')
         print(f'{registro} ({tamanho} bytes)\n') # type: ignore
