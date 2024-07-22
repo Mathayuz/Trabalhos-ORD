@@ -2,40 +2,7 @@ import os
 from sys import argv
 import io
 
-# O arquivo dados.dat possui informações sobre jogos. Os dados dos jogos estão armazenados
-# em registros de tamanho variável. O arquivo possui um cabeçalho de 4 bytes e os campos de
-# tamanho dos registros têm 2 bytes. Cada jogo possui os seguintes campos:
-# 1. IDENTIFICADOR do jogo (utilizado como chave primária);
-# 2. TÍTULO;
-# 3. ANO;
-# 4. GÊNERO;
-# 5. PRODUTORA;
-# 6. PLATAFORMA.
-# Dado o arquivo dados.dat, o programa oferece as seguintes funcionalidades principais:
-#   • Busca de um jogo pelo IDENTIFICADOR;
-#   • Inserção de um novo jogo;
-#   • Remoção de um jogo.
-# As operações a serem realizadas em determinada execução serão especificadas em um arquivo de operações, o qual
-# será passado ao programa como um parâmetro. Dessa forma, o programa não possuirá interface com o usuário e
-# executará as operações na sequência em que estiverem especificadas no arquivo de operações.
-# Exemplo de registro de um jogo:
-#   IDENTIFICADOR: 1
-#   NOME: Super Mario World
-#   ANO: 1990
-#   GÊNERO: Plataforma
-#   PRODUTORA: Nintendo
-#   PLATAFORMA: Super Nintendo
-# Exemplo de arquivo de operações:
-#   b 1
-#   i 2|Super Mario Bros|1990|Plataforma|Nintendo|NES|
-#   r 2
-# O programa deverá gerar um arquivo de saída com o resultado de cada operação. Caso a operação seja de busca, o
-# arquivo de saída deverá conter o registro do jogo encontrado. Caso a operação seja de inserção, o arquivo de saída
-# deverá conter a mensagem “Registro inserido com sucesso”. Caso a operação seja de remoção, o arquivo de saída
-# deverá conter a mensagem “Registro removido com sucesso”. Caso o registro não seja encontrado, o arquivo de saída
-# deverá conter a mensagem “Registro não encontrado”.
-
-def le_cabecalho(dados: io.TextIOWrapper) -> int:
+def le_cabecalho(dados: io.BufferedRandom) -> int:
     '''
     Lê o cabeçalho do arquivo de dados.dat que armazena o valor do topo da lista de espaços livres (LED).
     '''
@@ -43,14 +10,14 @@ def le_cabecalho(dados: io.TextIOWrapper) -> int:
     header = dados.read(4)
     return int.from_bytes(header, signed=True, byteorder='big')
 
-def escreve_cabecalho(dados: io.TextIOWrapper, topo: int) -> None:
+def escreve_cabecalho(dados: io.BufferedRandom, topo: int) -> None:
     '''
     Escreve o valor do topo da lista de espaços livres (LED) no cabeçalho do arquivo de dados.dat.
     '''
     dados.seek(0, os.SEEK_SET) # Volta para o início do arquivo
     dados.write(topo.to_bytes(4, signed=True, byteorder='big'))
 
-def opera_dados(arquivo_operacoes: io.TextIOWrapper, dados: io.TextIOWrapper):
+def opera_dados(arquivo_operacoes: io.TextIOWrapper, dados: io.BufferedRandom):
     '''
     Executa as operações de busca, inserção e remoção de registros no arquivo de dados.dat.
     '''
@@ -60,14 +27,14 @@ def opera_dados(arquivo_operacoes: io.TextIOWrapper, dados: io.TextIOWrapper):
         if comando == 'b':
             busca_chave(int(linha[2:]), dados)
         elif comando == 'i':
-            insercao_registro(linha[2:].replace('\n', ''), dados)
+            insercao_registro(linha[2:].strip(), dados)
         elif comando == 'r':
             remocao_registro(int(linha[2:]), dados)
         linha = arquivo_operacoes.readline() # Lê a próxima linha do arquivo de operações
 
     arquivo_operacoes.close() # Fecha o arquivo de operações
 
-def busca(chave: int, dados: io.TextIOWrapper) -> tuple[str, int, str]:
+def busca(chave: int, dados: io.BufferedRandom) -> tuple[str, int, str]:
     '''
     Busca um registro com a chave especificada no arquivo de dados.dat.
     '''
@@ -96,7 +63,7 @@ def busca(chave: int, dados: io.TextIOWrapper) -> tuple[str, int, str]:
             return (dados.read(tamanho).decode(), tamanho, offset)
         dados.seek(offset + 2 + tamanho) # Pula para o próximo registro
 
-def busca_chave(chave: int, dados: io.TextIOWrapper) -> None:
+def busca_chave(chave: int, dados: io.BufferedRandom) -> None:
     '''
     Busca um registro com a chave especificada no arquivo de dados.dat e imprime o registro no terminal.
     '''
@@ -109,7 +76,7 @@ def busca_chave(chave: int, dados: io.TextIOWrapper) -> None:
         print(f'{registro} ({tamanho} bytes)\n') # type: ignore
         return
     
-def insercao_registro(registro: str, dados: io.TextIOWrapper):
+def insercao_registro(registro: str, dados: io.BufferedRandom):
     '''
     Insere um novo registro no arquivo de dados.dat utilizando.
     Inserção do registro de chave "181" (35 bytes) 
@@ -122,7 +89,7 @@ def insercao_registro(registro: str, dados: io.TextIOWrapper):
         insercao_fim(registro, dados)
 
 
-def insercao_fim(registro: str, dados: io.TextIOWrapper) -> None:
+def insercao_fim(registro: str, dados: io.BufferedRandom) -> None:
     '''
     Insere um novo registro no final do arquivo de dados.dat.
     '''
@@ -138,7 +105,7 @@ def insercao_fim(registro: str, dados: io.TextIOWrapper) -> None:
     print('Local: fim do arquivo\n')
 
 
-def insercao_led(registro: str, dados: io.TextIOWrapper) -> None:
+def insercao_led(registro: str, dados: io.BufferedRandom) -> None:
     '''
     Tenta inserir um novo registro no arquivo de dados.dat utilizando a estratégia 'worst-fit'.
     '''
@@ -172,10 +139,11 @@ def insercao_led(registro: str, dados: io.TextIOWrapper) -> None:
         dados.write((len(registro)).to_bytes(2, byteorder='big')) # Escreve o tamanho do novo registro
         dados.write(registro.encode()) # Escreve o registro no espaço livre
 
+        # prepara o novo espaço livre para ser inserido na LED
         novo_led = cab + len(registro) + 2 # Calcula o offset do novo espaço livre
         dados.seek(novo_led, os.SEEK_SET) # Coloca o seek no novo espaço livre
         dados.write((tam - len(registro) - 2).to_bytes(2, byteorder='big')) # Escreve o tamanho do novo espaço livre
-        dados.write(b'*') # Marca o espaço livre
+        dados.write(b'*') # Marca o espaço como livre
         atualiza_led(dados, novo_led) # Atualiza a LED
 
     # printa a mensagem
@@ -186,7 +154,7 @@ def insercao_led(registro: str, dados: io.TextIOWrapper) -> None:
     print(f'Local: offset = {cab} bytes (0x{cab:04X})\n')
     
 
-def atualiza_led(dados: io.TextIOWrapper, offset: int) -> None:
+def atualiza_led(dados: io.BufferedRandom, offset: int) -> None:
     '''
     Atualiza a lista de espaços livres (LED) inserindo um novo espaço livre. A LED é organizada em ordem decrescente.
     '''
@@ -220,7 +188,8 @@ def atualiza_led(dados: io.TextIOWrapper, offset: int) -> None:
             dados.seek(-4, os.SEEK_CUR) # Volta para o próximo offset
             dados.write(offset.to_bytes(4, signed=True, byteorder='big')) # Escreve o offset do novo espaço livre
             dados.seek(offset + 3, os.SEEK_SET) # Pula o tamanho do espaço livre e o caractere '*'
-            dados.write(-1 .to_bytes(4, signed=True, byteorder='big')) # Escreve -1 no próximo offset da LED
+            final = -1
+            dados.write(final.to_bytes(4, signed=True, byteorder='big')) # Escreve -1 no próximo offset da LED
             return
         
         else: # Se o próximo offset não for -1, lê o tamanho do próximo espaço livre
@@ -239,7 +208,7 @@ def atualiza_led(dados: io.TextIOWrapper, offset: int) -> None:
                 tam_led = tam_prox_led
 
 
-def remocao_registro(chave: int, dados: io.TextIOWrapper):
+def remocao_registro(chave: int, dados: io.BufferedRandom):
     '''
     Remove o registro com a chave especificada do arquivo de dados.dat utilizando
     a estratégia 'worst-fit'.
@@ -269,7 +238,7 @@ def remocao_registro(chave: int, dados: io.TextIOWrapper):
     print(f'Local: offset = {offset} bytes (0x{offset:04X})\n')
 
 
-def mostrar_led(dados: io.TextIOWrapper) -> None:
+def mostrar_led(dados: io.BufferedReader) -> None:
     '''
     Mostra o estado atual da lista de espaços livres (LED) no terminal da seguinte forma:
     LED -> [offset: 4, tam: 80] -> [offset: 218, tam: 50] -> [offset: 169, tam: 47] -> [offset: -1]
@@ -302,9 +271,9 @@ def main() -> None:
     if len(argv) > 3 or len(argv) < 2:
         raise TypeError('Número incorreto de argumentos.\n'+ modoDeUso)
     elif argv[1] == '-e':
-        opera_dados(open(argv[2], 'r'), open('dados.dat', 'r+b')) # type: ignore
+        opera_dados(open(argv[2], 'r'), open('dados.dat', 'r+b')) # abre o arquivo em modo de leitura e escrita binária
     elif argv[1] == '-p':
-        mostrar_led(open('dados.dat', 'r+b')) # type: ignore
+        mostrar_led(open('dados.dat', 'rb')) # abre o arquivo em modo de leitura binária
     else:
         raise TypeError('Argumento inválido.'+ modoDeUso)
 
