@@ -271,9 +271,15 @@ def main() -> None:
     if len(argv) > 3 or len(argv) < 2:
         raise TypeError('Número incorreto de argumentos.\n'+ modoDeUso)
     elif argv[1] == '-e':
-        opera_dados(open(argv[2], 'r'), open('dados.dat', 'r+b')) # abre o arquivo em modo de leitura e escrita binária
+        try:
+            opera_dados(open(argv[2], 'r'), open('dados.dat', 'r+b')) # abre o arquivo em modo de leitura e escrita binária
+        except FileNotFoundError:
+            raise FileNotFoundError('Arquivo de operações não encontrado.\n'+ modoDeUso)
     elif argv[1] == '-p':
-        mostrar_led(open('dados.dat', 'rb')) # abre o arquivo em modo de leitura binária
+        try:
+            mostrar_led(open('dados.dat', 'rb')) # abre o arquivo em modo de leitura binária
+        except FileNotFoundError:
+            raise FileNotFoundError('Arquivo de dados não encontrado.\n'+ modoDeUso)
     else:
         raise TypeError('Argumento inválido.'+ modoDeUso)
 
