@@ -73,7 +73,8 @@ def busca_chave(chave: int, dados: io.BufferedRandom) -> None:
         print(registro + '\n') # Se o registro não for encontrado, imprime a mensagem de erro
     else:
         print(f'Busca pelo registro com chave "{chave}"')
-        print(f'{registro} ({tamanho} bytes)\n') # type: ignore
+        print(f'{registro} ({tamanho} bytes)') # type: ignore
+        print(f"Local: offset = {off} bytes (0x{off:04X})\n")  # type: ignore
         return
     
 def insercao_registro(registro: str, dados: io.BufferedRandom):
