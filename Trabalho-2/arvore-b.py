@@ -46,49 +46,174 @@ Observe que, para esse tipo de execução, os arquivos games.dat e btree.dat dev
 programa deve apresentar uma mensagem de erro e terminar.
 '''
 
-# constante ORDEM da árvore
+# Constantes
 ORDEM = 5
+TAM_PAG = 4096 # nao tenho certeza, no slide fala que tem um tam fixo mas nao fala qual
+TAM_CAB = 4
 
 # Estrutura de uma página da árvore-B
 class Pagina:
     def __init__(self) -> None:
-        self.num_chaves = 0
-        self.chaves = [None] * (ORDEM - 1)
-        self.filhos = [None] * ORDEM
-        self.offsets = [None] * (ORDEM - 1)
+        self.num_chaves: int = 0
+        self.chaves: list = [None] * (ORDEM - 1)
+        self.filhos: list = [None] * ORDEM
+        self.offsets: list = [None] * (ORDEM - 1)
 
-def criar_indice():
+def criar_indice(registros: io.BufferedRandom) -> None:
+    '''
+    Função que cria o índice (árvore-B) a partir do arquivo de registros
+    ''' 
+    pass
+    
+def busca_na_arvore(chave: int, rrn: int | None) -> tuple[bool, int | None, int | None]:
+    '''
+    Função que busca uma chave na árvore-B
+    '''
+    if rrn is None:
+        return False, None, None
+    else:
+        pag = le_pagina(rrn)
+        achou, pos = busca_na_pagina(chave, pag)
+        if achou:
+            return True, rrn, pos
+        else:
+            return busca_na_arvore(chave, pag.filhos[pos])
+
+def busca_na_pagina(chave: int, pag: Pagina) -> tuple[bool, int]:
+    '''
+    Função que busca uma chave em uma página da árvore-B
+    '''
+    pos = 0
+    while pos < pag.num_chaves and chave > pag.chaves[pos]:
+        pos += 1
+    if pos < pag.num_chaves and chave == pag.chaves[pos]:
+        return True, pos
+    else:
+        return False, pos
+
+def insere_na_arvore(chave: int, rrn_atual: int | None) -> tuple[int, int, bool]:
+    '''
+    Função que insere uma chave na árvore-B
+    '''
+    if rrn_atual is None:
+        chave_promovida = chave
+        filho_d_pro = None
+        return chave_promovida, filho_d_pro, True
+    else:
+        pag = le_pagina(rrn_atual)
+        achou, pos = busca_na_pagina(chave, pag)
+    if achou:
+        raise ValueError('Chave duplicada')
+    chave_promovida, filho_d_pro, promo = insere_na_arvore(chave, pag.filhos[pos])
+    if not promo:
+        return None, None, False
+    else:
+        if pag.num_chaves < ORDEM - 1:
+            insere_na_pagina(chave_promovida, filho_d_pro, pag)
+            escreve_pagina(rrn_atual, pag)
+            return None, None, False
+        else:
+            chave_promovida, filho_d_pro, pag, nova_pag = divide(chave_promovida, filho_d_pro, pag)
+            escreve_pagina(rrn_atual, pag)
+            escreve_pagina(novo_rrn(), nova_pag)
+            return chave_promovida, filho_d_pro, True
+
+def le_pagina(rrn: int) -> Pagina:
+    '''
+    Função que lê uma página da árvore-B
+    '''
     pass
 
-def busca_na_arvore(chave, rrn):
+def escreve_pagina(rrn: int, pag: Pagina) -> None:
+    '''
+    Função que escreve uma página da árvore-B
+    '''
     pass
 
-def busca_na_pagina(chave, pag):
+def insere_na_pagina(chave: int, filho_direito: int, pag: Pagina) -> None:
+    '''
+    Função que insere uma chave em uma página da árvore-B
+    '''
+    if pag.num_chaves >= ORDEM - 1:
+        pag.chaves.append(None)
+        pag.filhos.append(None)
+    
+    i = pag.num_chaves
+    
+    while i > 0 and chave < pag.chaves[i - 1]:
+        pag.chaves[i] = pag.chaves[i - 1]
+        pag.filhos[i + 1] = pag.filhos[i]
+        pag.offsets[i] = pag.offsets[i - 1]
+        i -= 1
+    
+    pag.chaves[i] = chave
+    pag.filhos[i + 1] = filho_direito
+    
+    pag.num_chaves += 1
+
+def divide(chave: int, filho_direito: int, pag: Pagina) -> tuple[int, int, Pagina, Pagina]:
+    '''
+    Função que divide uma página da árvore-B
+    '''
+    insere_na_pagina(chave, filho_direito, pag)
+    meio = ORDEM // 2
+    chave_promovida = pag.chaves[meio]
+    filho_d_pro = novo_rrn()
+
+    p_atual = Pagina()
+    p_nova = Pagina()
+
+    p_atual.num_chaves = meio
+    p_atual.chaves = pag.chaves[:meio]
+    p_atual.filhos = pag.filhos[:meio + 1]
+    p_atual.offsets = pag.offsets[:meio]
+
+    p_nova.num_chaves = ORDEM - meio - 1
+    p_nova.chaves = pag.chaves[meio + 1:]
+    p_nova.filhos = pag.filhos[meio + 1:]
+    p_nova.offsets = pag.offsets[meio + 1:]
+
+    return chave_promovida, filho_d_pro, p_atual, p_nova
+
+def novo_rrn() -> int:
+    '''
+    Função que retorna um novo RRN para uma página nova da árvore-B
+    '''
     pass
 
-def insere_na_arvore(chave, rrn_atual):
+def gerenciador_de_insercao(raiz: int) -> int:
+    '''
+    Função que gerencia a inserção de uma chave na árvore-B
+    '''
     pass
 
-def le_pagina(rrn):
+def principal() -> None:
+    '''
+    Função responsável por abrir (ou criar) o arquivo da árvore-B e chamar o gerenciador
+    '''
+    arquivo_arvore_b = 'btree.dat'
+    pos_pagina_inicial = 4
+    
+    if os.path.exists(arquivo_arvore_b):
+        with open(arquivo_arvore_b, 'r+b') as arq_arvb:
+            raiz = struct.unpack('I', arq_arvb.read(4))[0]
+            pag = le_pagina(arq_arvb, pos_pagina_inicial)
+    
+    else:
+        with open(arquivo_arvore_b, 'w+b') as arq_arvb:
+            raiz = 0
+            arq_arvb.write(struct.pack('I', raiz))
+            pag = Pagina()
+            escreve_pagina(arq_arvb, pag, pos_pagina_inicial)
+    
+    raiz = gerenciador_de_insercao(raiz)
+    
+    with open(arquivo_arvore_b, 'r+b') as arq_arvb:
+        arq_arvb.seek(0)
+        arq_arvb.write(struct.pack('I', raiz))
+
+def main() -> None:
     pass
 
-def escreve_pagina(rrn, pag):
-    pass
-
-def insere_na_pagina(chave, filho_direito, pag):
-    pass
-
-def divide(chave, filho_direito, pag):
-    pass
-
-def novo_rrn():
-    pass
-
-def gerenciador_de_insercao(raiz):
-    pass
-
-def principal():
-    pass
-
-def main():
-    pass
+if __name__ == '__main__':
+    main()
