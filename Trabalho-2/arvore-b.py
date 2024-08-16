@@ -48,7 +48,7 @@ programa deve apresentar uma mensagem de erro e terminar.
 
 # Constantes
 ORDEM = 5
-TAM_PAG = 4096 # nao tenho certeza, no slide fala que tem um tam fixo mas nao fala qual
+TAM_PAG = 1 + ((ORDEM-1)*2) + (3*ORDEM) # será arredondado para cima para garantir que o tamanho da página seja múltiplo de 4
 TAM_CAB = 4
 
 # Estrutura de uma página da árvore-B
