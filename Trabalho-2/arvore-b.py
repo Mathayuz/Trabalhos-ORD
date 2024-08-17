@@ -122,13 +122,27 @@ def le_pagina(rrn: int) -> Pagina:
     '''
     Função que lê uma página da árvore-B
     '''
-    pass
+    offset = TAM_CAB + (rrn * TAM_PAG)
+    with open('btree.dat', 'rb') as arq_arvb:
+        arq_arvb.seek(offset)
+        pag = Pagina()
+        pag.num_chaves = struct.unpack('B', arq_arvb.read(1))[0]
+        pag.chaves = struct.unpack(f'{ORDEM - 1}I', arq_arvb.read((ORDEM - 1) * 4))
+        pag.filhos = struct.unpack(f'{ORDEM}I', arq_arvb.read(ORDEM * 4))
+        pag.offsets = struct.unpack(f'{ORDEM - 1}I', arq_arvb.read((ORDEM - 1) * 4))
+    return pag
 
 def escreve_pagina(rrn: int, pag: Pagina) -> None:
     '''
     Função que escreve uma página da árvore-B
     '''
-    pass
+    offset = TAM_CAB + (rrn * TAM_PAG)
+    with open('btree.dat', 'r+b') as arq_arvb:
+        arq_arvb.seek(offset)
+        arq_arvb.write(struct.pack('B', pag.num_chaves))
+        arq_arvb.write(struct.pack(f'{ORDEM - 1}I', *pag.chaves))
+        arq_arvb.write(struct.pack(f'{ORDEM}I', *pag.filhos))
+        arq_arvb.write(struct.pack(f'{ORDEM - 1}I', *pag.offsets))
 
 def insere_na_pagina(chave: int, filho_direito: int, pag: Pagina) -> None:
     '''
@@ -179,13 +193,31 @@ def novo_rrn() -> int:
     '''
     Função que retorna um novo RRN para uma página nova da árvore-B
     '''
-    pass
+    with open('btree.dat', 'r+b') as arq_arvb:
+        arq_arvb.seek(0, io.SEEK_END)
+        offset = arq_arvb.tell()
+        rrn = (offset - TAM_CAB) // TAM_PAG
+    return rrn
 
 def gerenciador_de_insercao(raiz: int) -> int:
     '''
     Função que gerencia a inserção de uma chave na árvore-B
     '''
-    pass
+    arquivo_registros = 'games.dat'
+    with open(arquivo_registros, 'rb') as arq_registros:
+        chave = struct.unpack('I', arq_registros.read(4))[0]
+        while chave != 0:
+            chave_pro, filho_D_pro, promo = insere_na_arvore(chave, raiz)
+            if promo:
+                p_nova = Pagina()
+                p_nova.chaves[0] = chave_pro
+                p_nova.filhos[0] = raiz
+                p_nova.filhos[1] = filho_D_pro
+                p_nova.num_chaves += 1
+                escreve_pagina(raiz, p_nova)
+                raiz = novo_rrn()
+            chave = struct.unpack('I', arq_registros.read(4))[0]
+    return raiz
 
 def principal() -> None:
     '''
@@ -211,6 +243,12 @@ def principal() -> None:
     with open(arquivo_arvore_b, 'r+b') as arq_arvb:
         arq_arvb.seek(0)
         arq_arvb.write(struct.pack('I', raiz))
+
+def imprime_arvore_b(arq_arvore: io.BufferedRandom) -> str:
+    '''
+    Função que imprime a árvore-B
+    '''
+    pass
 
 def main() -> None:
     pass
