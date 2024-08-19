@@ -48,7 +48,7 @@ programa deve apresentar uma mensagem de erro e terminar.
 
 # Constantes
 ORDEM = 5
-TAM_PAG = 1 + ((ORDEM-1)*2) + (3*ORDEM) # será arredondado para cima para garantir que o tamanho da página seja múltiplo de 4
+TAM_PAG = ORDEM * 12 - 4 # segundo meu mano vitor róxo
 TAM_CAB = 4
 
 # Estrutura de uma página da árvore-B
@@ -58,13 +58,7 @@ class Pagina:
         self.chaves: list = [None] * (ORDEM - 1)
         self.filhos: list = [None] * ORDEM
         self.offsets: list = [None] * (ORDEM - 1)
-
-def criar_indice(registros: io.BufferedRandom) -> None:
-    '''
-    Função que cria o índice (árvore-B) a partir do arquivo de registros
-    ''' 
-    pass
-    
+  
 def busca_na_arvore(chave: int, rrn: int | None) -> tuple[bool, int | None, int | None]:
     '''
     Função que busca uma chave na árvore-B
@@ -206,7 +200,7 @@ def gerenciador_de_insercao(raiz: int) -> int:
     arquivo_registros = 'games.dat'
     with open(arquivo_registros, 'rb') as arq_registros:
         chave = struct.unpack('I', arq_registros.read(4))[0]
-        while chave != 0:
+        while chave:
             chave_pro, filho_D_pro, promo = insere_na_arvore(chave, raiz)
             if promo:
                 p_nova = Pagina()
@@ -251,7 +245,19 @@ def imprime_arvore_b(arq_arvore: io.BufferedRandom) -> str:
     pass
 
 def main() -> None:
-    pass
+    '''
+    Função principal
+    '''
+    if len(argv) < 2:
+        print('Uso: python3 arvore-b.py -c')
+        return
+    if argv[1] == '-c':
+        principal()
+    elif argv[1] == '-p':
+        with open('btree.dat', 'rb') as arq_arvb:
+            imprime_arvore_b(arq_arvb)
+    else:
+        print('Opção inválida')
 
 if __name__ == '__main__':
     main()
