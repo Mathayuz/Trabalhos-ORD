@@ -121,9 +121,9 @@ def le_pagina(rrn: int) -> Pagina:
         arq_arvb.seek(offset)
         pag = Pagina()
         pag.num_chaves = struct.unpack('B', arq_arvb.read(1))[0]
-        pag.chaves = struct.unpack(f'{ORDEM - 1}I', arq_arvb.read((ORDEM - 1) * 4))
-        pag.filhos = struct.unpack(f'{ORDEM}I', arq_arvb.read(ORDEM * 4))
-        pag.offsets = struct.unpack(f'{ORDEM - 1}I', arq_arvb.read((ORDEM - 1) * 4))
+        pag.chaves = list(struct.unpack(f'{ORDEM - 1}I', arq_arvb.read(4 * (ORDEM - 1))))
+        pag.filhos = list(struct.unpack(f'{ORDEM}I', arq_arvb.read(4 * ORDEM)))
+        pag.offsets = list(struct.unpack(f'{ORDEM - 1}I', arq_arvb.read(4 * (ORDEM - 1))))
     return pag
 
 def escreve_pagina(rrn: int, pag: Pagina) -> None:
@@ -217,24 +217,18 @@ def principal() -> None:
     '''
     Função responsável por abrir (ou criar) o arquivo da árvore-B e chamar o gerenciador
     '''
-    arquivo_arvore_b = 'btree.dat'
-    pos_pagina_inicial = 4
-    
-    if os.path.exists(arquivo_arvore_b):
-        with open(arquivo_arvore_b, 'r+b') as arq_arvb:
+    if os.path.exists('btree.dat'):
+        with open('btree.dat', 'r+b') as arq_arvb:
             raiz = struct.unpack('I', arq_arvb.read(4))[0]
-            pag = le_pagina(arq_arvb, pos_pagina_inicial)
-    
     else:
-        with open(arquivo_arvore_b, 'w+b') as arq_arvb:
+        with open('btree.dat', 'w+b') as arq_arvb:
             raiz = 0
             arq_arvb.write(struct.pack('I', raiz))
             pag = Pagina()
-            escreve_pagina(arq_arvb, pag, pos_pagina_inicial)
+            arq_arvb.write(struct.pack('<I', pag.num_chaves))
     
     raiz = gerenciador_de_insercao(raiz)
-    
-    with open(arquivo_arvore_b, 'r+b') as arq_arvb:
+    with open('btree.dat', 'r+b') as arq_arvb:
         arq_arvb.seek(0)
         arq_arvb.write(struct.pack('I', raiz))
 
