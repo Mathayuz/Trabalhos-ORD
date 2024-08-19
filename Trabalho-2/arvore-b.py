@@ -238,6 +238,12 @@ def principal() -> None:
         arq_arvb.seek(0)
         arq_arvb.write(struct.pack('I', raiz))
 
+def executa_operacoes(arq_operacoes: io.BufferedRandom) -> None:
+    '''
+    Função que executa as operações de busca e inserção de um arquivo de operações
+    '''
+    pass
+
 def imprime_arvore_b(arq_arvore: io.BufferedRandom) -> str:
     '''
     Função que imprime a árvore-B
@@ -253,6 +259,9 @@ def main() -> None:
         return
     if argv[1] == '-c':
         principal()
+    elif argv[1] == '-e':
+        with open('operacoes.dat', 'rb') as arq_operacoes:
+            executa_operacoes(arq_operacoes)
     elif argv[1] == '-p':
         with open('btree.dat', 'rb') as arq_arvb:
             imprime_arvore_b(arq_arvb)
