@@ -241,11 +241,37 @@ def executa_operacoes(arq_operacoes: io.BufferedRandom) -> None:
     '''
     pass
 
-def imprime_arvore_b(arq_arvore: io.BufferedRandom) -> str:
+def imprime_arvore_b(arq_arvore: io.BufferedRandom) -> None:
     '''
     Função que imprime a árvore-B
     '''
-    pass
+    arq_arvore.seek(0)
+    raiz = struct.unpack('i', arq_arvore.read(4))[0]
+    if raiz == -1:
+        print('Árvore vazia')
+        return
+    else:
+        num_paginas = 0
+        while arq_arvore:
+            arq_arvore.seek(TAM_CAB + (num_paginas * TAM_PAG))
+            pagina = le_pagina(num_paginas)
+            if num_paginas == raiz:
+                print('----------- Raiz -----------')
+                imprime_pagina(pagina)
+                print('-----------------------------')
+            else:
+                imprime_pagina(pagina)
+
+            num_paginas += 1
+    
+def imprime_pagina(pagina: Pagina) -> None:
+    '''
+    Função que imprime uma página da árvore-B
+    '''
+    print('Número de chaves:', pagina.num_chaves)
+    print('Chaves:', pagina.chaves)
+    print('Filhos:', pagina.filhos)
+    print('Offsets:', pagina.offsets)
 
 def main() -> None:
     '''
