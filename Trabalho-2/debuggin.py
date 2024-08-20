@@ -213,6 +213,7 @@ def gerenciador_de_insercao(raiz: int) -> int:
     with open(arquivo_registros, 'rb') as arq_registros:
         arq_registros.seek(4) # Pula o cabeçalho
         tam_registro = struct.unpack('h', arq_registros.read(2))[0] # Lê o tamanho do registro
+        # possui um erro aqui, pois estamos lendo o valor do tamanho do registro, mas não estamos lendo o registro em si
         chave = struct.unpack('h', arq_registros.read(2))[0] # Lê a chave do registro
         while chave: # Enquanto houver chaves
             chave_promovida, filho_d_pro, promo = insere_na_arvore(chave, raiz) # Insere a chave na árvore
