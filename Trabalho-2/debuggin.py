@@ -258,23 +258,4 @@ def imprime_arvore_b(arq_arvore: io.BufferedRandom) -> str:
     '''
     pass
 
-def main() -> None:
-    '''
-    Função principal
-    '''
-    if len(argv) < 2:
-        print('Uso: python3 arvore-b.py -c')
-        return
-    if argv[1] == '-c':
-        principal()
-    elif argv[1] == '-e':
-        with open('operacoes.dat', 'rb') as arq_operacoes:
-            executa_operacoes(arq_operacoes)
-    elif argv[1] == '-p':
-        with open('btree.dat', 'rb') as arq_arvb:
-            imprime_arvore_b(arq_arvb)
-    else:
-        print('Opção inválida')
-
-if __name__ == '__main__':
-    main()
+principal()
