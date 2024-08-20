@@ -85,7 +85,7 @@ def busca_na_pagina(chave: int, pag: Pagina) -> tuple[bool, int]:
     else:
         return False, pos
 
-def insere_na_arvore(chave: int, rrn_atual: int) -> tuple[int, int, bool]:
+def insere_na_arvore(chave: int, rrn_atual: int, byte_offset: int) -> tuple[int, int, bool]:
     '''
     Função que insere uma chave na árvore-B
     '''
@@ -98,12 +98,12 @@ def insere_na_arvore(chave: int, rrn_atual: int) -> tuple[int, int, bool]:
         achou, pos = busca_na_pagina(chave, pag)
     if achou:
         raise ValueError('Chave duplicada')
-    chave_pro, filho_d_pro, promo = insere_na_arvore(chave, pag.filhos[pos])
+    chave_pro, filho_d_pro, promo = insere_na_arvore(chave, pag.filhos[pos], byte_offset)
     if not promo:
         return -1, -1, False
     else:
         if pag.num_chaves < ORDEM - 1:
-            insere_na_pagina(chave_pro, filho_d_pro, pag)
+            insere_na_pagina(chave_pro, filho_d_pro, pag, byte_offset)
             escreve_pagina(rrn_atual, pag)
             return -1, -1, False
         else:
@@ -137,23 +137,26 @@ def escreve_pagina(rrn: int, pag: Pagina) -> None:
         empacotados = struct.pack(f'<i{ORDEM - 1}i{ORDEM}i{ORDEM - 1}i', pag.num_chaves, *pag.chaves, *pag.filhos, *pag.offsets)
         arq_arvb.write(empacotados)
 
-def insere_na_pagina(chave: int, filho_direito: int, pag: Pagina) -> None:
+def insere_na_pagina(chave: int, filho_direito: int, pag: Pagina, byte_offset: int) -> None:
     '''
     Função que insere uma chave em uma página da árvore-B
     '''
     if pag.num_chaves >= ORDEM - 1:
         pag.chaves.append(-1)
         pag.filhos.append(-1)
+        pag.offsets.append(-1)
     
     i = pag.num_chaves
     
     while i > 0 and chave < pag.chaves[i - 1]:
         pag.chaves[i] = pag.chaves[i - 1]
         pag.filhos[i + 1] = pag.filhos[i]
+        pag.offsets[i] = pag.offsets[i - 1]
         i -= 1
     
     pag.chaves[i] = chave
     pag.filhos[i + 1] = filho_direito
+    pag.offsets[i] = byte_offset
     
     pag.num_chaves += 1
 
@@ -212,14 +215,12 @@ def gerenciador_de_insercao(raiz: int) -> int:
     arquivo_registros = 'games.dat'
     with open(arquivo_registros, 'rb') as arq_registros:
         arq_registros.seek(4) # Pula o cabeçalho
+        byte_offset = arq_registros.tell()
         tam_registro = struct.unpack('h', arq_registros.read(2))[0] # Lê o tamanho do registro
-        chave_str = str(arq_registros.read(2)) # Lê a chave do registro
-        if chave_str[3] != '|':
-            chave = int(chave_str[2:4])
-        else:
-            chave = int(chave_str[2])
+        registro = arq_registros.read(tam_registro) # Lê o registro
+        chave = int(registro.decode().split('|')[0])
         while chave: # Enquanto houver chaves
-            chave_promovida, filho_d_pro, promo = insere_na_arvore(chave, raiz) # Insere a chave na árvore
+            chave_promovida, filho_d_pro, promo = insere_na_arvore(chave, raiz, byte_offset) # Insere a chave na árvore
             if promo: # Se houve promoção
                 p_nova = Pagina() # Cria uma nova página
                 p_nova.num_chaves = 1
@@ -228,13 +229,13 @@ def gerenciador_de_insercao(raiz: int) -> int:
                 p_nova.filhos[1] = filho_d_pro
                 raiz = novo_rrn()
                 escreve_pagina(raiz, p_nova)
-            arq_registros.seek(tam_registro - 2, io.SEEK_CUR) # Pula o restante do registro
-            tam_registro = struct.unpack('h', arq_registros.read(2))[0] # Lê o tamanho do próximo registro
-            chave_str = str(arq_registros.read(2)) # Lê a chave do registro
-            if chave_str[3] != '|': # Se a chave tem 2 dígitos
-                chave = int(chave_str[2:4]) # Converte a chave para inteiro
-            else:
-                chave = int(chave_str[2])
+            byte_offset = arq_registros.tell()
+            prox_tam = arq_registros.read(2)
+            if not prox_tam:
+                break
+            tam_registro = struct.unpack('h', prox_tam)[0] # Lê o tamanho do registro
+            registro = arq_registros.read(tam_registro)
+            chave = int(registro.decode().split('|')[0])
     return raiz
 
 def principal() -> None:
