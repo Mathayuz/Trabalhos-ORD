@@ -48,23 +48,23 @@ programa deve apresentar uma mensagem de erro e terminar.
 
 # Constantes
 ORDEM = 5
-TAM_PAG = ORDEM * 12 - 4 # segundo meu mano vitor róxo
+TAM_PAG = 4 + ((ORDEM-1) * 4) + ((ORDEM-1) * 4) + (ORDEM * 4)
 TAM_CAB = 4
 
 # Estrutura de uma página da árvore-B
 class Pagina:
     def __init__(self) -> None:
         self.num_chaves: int = 0
-        self.chaves: list = [None] * (ORDEM - 1)
-        self.filhos: list = [None] * ORDEM
-        self.offsets: list = [None] * (ORDEM - 1)
+        self.chaves: list = [-1] * (ORDEM - 1)
+        self.filhos: list = [-1] * ORDEM
+        self.offsets: list = [-1] * (ORDEM - 1)
   
-def busca_na_arvore(chave: int, rrn: int | None) -> tuple[bool, int | None, int | None]:
+def busca_na_arvore(chave: int, rrn: int) -> tuple[bool, int, int]:
     '''
     Função que busca uma chave na árvore-B
     '''
-    if rrn is None:
-        return False, None, None
+    if rrn == -1:
+        return False, -1, -1
     else:
         pag = le_pagina(rrn)
         achou, pos = busca_na_pagina(chave, pag)
@@ -85,13 +85,13 @@ def busca_na_pagina(chave: int, pag: Pagina) -> tuple[bool, int]:
     else:
         return False, pos
 
-def insere_na_arvore(chave: int, rrn_atual: int | None) -> tuple[int, int, bool]:
+def insere_na_arvore(chave: int, rrn_atual: int) -> tuple[int, int, bool]:
     '''
     Função que insere uma chave na árvore-B
     '''
-    if rrn_atual is None:
+    if rrn_atual == -1:
         chave_promovida = chave
-        filho_d_pro = None
+        filho_d_pro = -1
         return chave_promovida, filho_d_pro, True
     else:
         pag = le_pagina(rrn_atual)
@@ -100,12 +100,12 @@ def insere_na_arvore(chave: int, rrn_atual: int | None) -> tuple[int, int, bool]
         raise ValueError('Chave duplicada')
     chave_promovida, filho_d_pro, promo = insere_na_arvore(chave, pag.filhos[pos])
     if not promo:
-        return None, None, False
+        return -1, -1, False
     else:
         if pag.num_chaves < ORDEM - 1:
             insere_na_pagina(chave_promovida, filho_d_pro, pag)
             escreve_pagina(rrn_atual, pag)
-            return None, None, False
+            return -1, -1, False
         else:
             chave_promovida, filho_d_pro, pag, nova_pag = divide(chave_promovida, filho_d_pro, pag)
             escreve_pagina(rrn_atual, pag)
@@ -113,17 +113,18 @@ def insere_na_arvore(chave: int, rrn_atual: int | None) -> tuple[int, int, bool]
             return chave_promovida, filho_d_pro, True
 
 def le_pagina(rrn: int) -> Pagina:
-    '''
-    Função que lê uma página da árvore-B
-    '''
     offset = TAM_CAB + (rrn * TAM_PAG)
     with open('btree.dat', 'rb') as arq_arvb:
         arq_arvb.seek(offset)
+        dados = arq_arvb.read(TAM_PAG)
+        
+        desempacotados = struct.unpack(f'<i{ORDEM - 1}i{ORDEM}i{ORDEM - 1}i', dados)
+
         pag = Pagina()
-        pag.num_chaves = struct.unpack('B', arq_arvb.read(1))[0]
-        pag.chaves = list(struct.unpack(f'{ORDEM - 1}I', arq_arvb.read(4 * (ORDEM - 1))))
-        pag.filhos = list(struct.unpack(f'{ORDEM}I', arq_arvb.read(4 * ORDEM)))
-        pag.offsets = list(struct.unpack(f'{ORDEM - 1}I', arq_arvb.read(4 * (ORDEM - 1))))
+        pag.num_chaves = desempacotados[0]
+        pag.chaves = list(desempacotados[1:ORDEM])
+        pag.filhos = list(desempacotados[ORDEM:2 * ORDEM])
+        pag.offsets = list(desempacotados[2 * ORDEM:])
     return pag
 
 def escreve_pagina(rrn: int, pag: Pagina) -> None:
@@ -132,26 +133,23 @@ def escreve_pagina(rrn: int, pag: Pagina) -> None:
     '''
     offset = TAM_CAB + (rrn * TAM_PAG)
     with open('btree.dat', 'r+b') as arq_arvb:
-        arq_arvb.seek(offset)
-        arq_arvb.write(struct.pack('B', pag.num_chaves))
-        arq_arvb.write(struct.pack(f'{ORDEM - 1}I', *pag.chaves))
-        arq_arvb.write(struct.pack(f'{ORDEM}I', *pag.filhos))
-        arq_arvb.write(struct.pack(f'{ORDEM - 1}I', *pag.offsets))
+        arq_arvb.seek(offset, os.SEEK_SET)
+        empacotados = struct.pack(f'<i{ORDEM - 1}i{ORDEM}i{ORDEM - 1}i', pag.num_chaves, *pag.chaves, *pag.filhos, *pag.offsets)
+        arq_arvb.write(empacotados)
 
 def insere_na_pagina(chave: int, filho_direito: int, pag: Pagina) -> None:
     '''
     Função que insere uma chave em uma página da árvore-B
     '''
     if pag.num_chaves >= ORDEM - 1:
-        pag.chaves.append(None)
-        pag.filhos.append(None)
+        pag.chaves.append(-1)
+        pag.filhos.append(-1)
     
     i = pag.num_chaves
     
     while i > 0 and chave < pag.chaves[i - 1]:
         pag.chaves[i] = pag.chaves[i - 1]
         pag.filhos[i + 1] = pag.filhos[i]
-        pag.offsets[i] = pag.offsets[i - 1]
         i -= 1
     
     pag.chaves[i] = chave
@@ -195,12 +193,15 @@ def novo_rrn() -> int:
 
 def gerenciador_de_insercao(raiz: int) -> int:
     '''
-    Função que gerencia a inserção de uma chave na árvore-B
+    Função que gerencia a inserção de chaves na árvore-B
     '''
     arquivo_registros = 'games.dat'
     with open(arquivo_registros, 'rb') as arq_registros:
-        chave = struct.unpack('I', arq_registros.read(4))[0]
-        while chave:
+        while True:
+            dado = arq_registros.read(4)
+            if not dado:  # EOF
+                break
+            chave = struct.unpack('i', dado)[0]
             chave_pro, filho_D_pro, promo = insere_na_arvore(chave, raiz)
             if promo:
                 p_nova = Pagina()
@@ -210,7 +211,6 @@ def gerenciador_de_insercao(raiz: int) -> int:
                 p_nova.num_chaves += 1
                 escreve_pagina(raiz, p_nova)
                 raiz = novo_rrn()
-            chave = struct.unpack('I', arq_registros.read(4))[0]
     return raiz
 
 def principal() -> None:
@@ -219,18 +219,21 @@ def principal() -> None:
     '''
     if os.path.exists('btree.dat'):
         with open('btree.dat', 'r+b') as arq_arvb:
-            raiz = struct.unpack('I', arq_arvb.read(4))[0]
+            raiz = struct.unpack('i', arq_arvb.read(4))[0]
     else:
         with open('btree.dat', 'w+b') as arq_arvb:
             raiz = 0
-            arq_arvb.write(struct.pack('I', raiz))
+            arq_arvb.write(struct.pack('i', raiz))
             pag = Pagina()
-            arq_arvb.write(struct.pack('<I', pag.num_chaves))
+            arq_arvb.write(struct.pack('<i', pag.num_chaves))
+            arq_arvb.write(struct.pack(f'<{ORDEM - 1}i', *pag.chaves))
+            arq_arvb.write(struct.pack(f'<{ORDEM}i', *pag.filhos))
+            arq_arvb.write(struct.pack(f'<{ORDEM - 1}i', *pag.offsets))
     
     raiz = gerenciador_de_insercao(raiz)
     with open('btree.dat', 'r+b') as arq_arvb:
         arq_arvb.seek(0)
-        arq_arvb.write(struct.pack('I', raiz))
+        arq_arvb.write(struct.pack('i', raiz))
 
 def executa_operacoes(arq_operacoes: io.BufferedRandom) -> None:
     '''
