@@ -90,27 +90,27 @@ def insere_na_arvore(chave: int, rrn_atual: int) -> tuple[int, int, bool]:
     Função que insere uma chave na árvore-B
     '''
     if rrn_atual == -1:
-        chave_promovida = chave
+        chave_pro = chave
         filho_d_pro = -1
-        return chave_promovida, filho_d_pro, True
+        return chave_pro, filho_d_pro, True
     else:
         pag = le_pagina(rrn_atual)
         achou, pos = busca_na_pagina(chave, pag)
     if achou:
         raise ValueError('Chave duplicada')
-    chave_promovida, filho_d_pro, promo = insere_na_arvore(chave, pag.filhos[pos])
+    chave_pro, filho_d_pro, promo = insere_na_arvore(chave, pag.filhos[pos])
     if not promo:
         return -1, -1, False
     else:
         if pag.num_chaves < ORDEM - 1:
-            insere_na_pagina(chave_promovida, filho_d_pro, pag)
+            insere_na_pagina(chave_pro, filho_d_pro, pag)
             escreve_pagina(rrn_atual, pag)
             return -1, -1, False
         else:
-            chave_promovida, filho_d_pro, pag, nova_pag = divide(chave_promovida, filho_d_pro, pag)
+            chave_pro, filho_d_pro, pag, nova_pag = divide(chave_pro, filho_d_pro, pag)
             escreve_pagina(rrn_atual, pag)
             escreve_pagina(novo_rrn(), nova_pag)
-            return chave_promovida, filho_d_pro, True
+            return chave_pro, filho_d_pro, True
 
 def le_pagina(rrn: int) -> Pagina:
     offset = TAM_CAB + (rrn * TAM_PAG)
@@ -213,20 +213,28 @@ def gerenciador_de_insercao(raiz: int) -> int:
     with open(arquivo_registros, 'rb') as arq_registros:
         arq_registros.seek(4) # Pula o cabeçalho
         tam_registro = struct.unpack('h', arq_registros.read(2))[0] # Lê o tamanho do registro
-        # possui um erro aqui, pois estamos lendo o valor do tamanho do registro, mas não estamos lendo o registro em si
-        chave = struct.unpack('h', arq_registros.read(2))[0] # Lê a chave do registro
+        chave_str = str(arq_registros.read(2)) # Lê a chave do registro
+        if chave_str[3] != '|':
+            chave = int(chave_str[2:4])
+        else:
+            chave = int(chave_str[2])
         while chave: # Enquanto houver chaves
             chave_promovida, filho_d_pro, promo = insere_na_arvore(chave, raiz) # Insere a chave na árvore
             if promo: # Se houve promoção
-                p_nova = Pagina()
+                p_nova = Pagina() # Cria uma nova página
                 p_nova.num_chaves = 1
                 p_nova.chaves[0] = chave_promovida
                 p_nova.filhos[0] = raiz
                 p_nova.filhos[1] = filho_d_pro
-                escreve_pagina(raiz, p_nova)
                 raiz = novo_rrn()
-            arq_registros.seek(tam_registro - 4, io.SEEK_CUR) # Pula o restante do registro
-            chave = struct.unpack('h', arq_registros.read(2))[0] # Lê a chave do próximo registro
+                escreve_pagina(raiz, p_nova)
+            arq_registros.seek(tam_registro - 2, io.SEEK_CUR) # Pula o restante do registro
+            tam_registro = struct.unpack('h', arq_registros.read(2))[0] # Lê o tamanho do próximo registro
+            chave_str = str(arq_registros.read(2)) # Lê a chave do registro
+            if chave_str[3] != '|': # Se a chave tem 2 dígitos
+                chave = int(chave_str[2:4]) # Converte a chave para inteiro
+            else:
+                chave = int(chave_str[2])
     return raiz
 
 def principal() -> None:
