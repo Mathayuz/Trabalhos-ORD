@@ -268,7 +268,7 @@ def main() -> None:
     '''
     Função principal do programa.
     '''
-    modoDeUso = 'Modo de uso: \n-> python lorenzo_zanetti_matheus_jacomini.py -e arquivo_operacoes\n-> python lorenzo_zanetti_matheus_jacomini.py -p'
+    modoDeUso = 'Modo de uso: \n-> python lorenzo_zanetti_matheus_jacomini_v2.py -e arquivo_operacoes\n-> python lorenzo_zanetti_matheus_jacomini_v2.py -p'
     if len(argv) > 3 or len(argv) < 2:
         raise TypeError('Número incorreto de argumentos.\n'+ modoDeUso)
     elif argv[1] == '-e':

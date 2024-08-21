@@ -3,49 +3,6 @@ import io
 from sys import argv
 import struct
 
-'''
-O  objetivo  deste  trabalho  é  criar  um  programa  que,  a  partir  de  um  arquivo  de  registros,  construa  e  mantenha  um 
-índice estruturado como uma árvore-B.  
-O  arquivo  de  registros  conterá  informações  sobre  jogos  e  estará  armazenado  no  arquivo  games.dat  no  mesmo 
-formato do arquivo dados.dat utilizado no 1º trabalho prático. Para cada registro lido, a chave (o identificador do jogo) 
-deverá ser inserida em uma árvore-B de determinada ORDEM, juntamente com o byte-offset do registro 
-correspondente.  Para  facilitar  a  experimentação  com  árvores  de  diferentes  ordens,  defina  ORDEM  como  uma 
-constante e use-a ao longo do código sempre que precisar referenciar a ordem da árvore. Esteja ciente de que o seu 
-programa será testado com árvores de diferentes ordens. 
-A estrutura interna das páginas da árvore-B será similar à vista em aula, porém deverá conter, adicionalmente, uma 
-lista para o armazenamento dos byte-offsets dos registros. A árvore-B deverá ser criada e mantida em arquivo, logo, 
-nunca estará completamente carregada na memória. 
-O programa deverá oferecer as seguintes funcionalidades: 
-● Criação do índice (árvore-B) a partir do arquivo de registros (opção -c); 
-● Execução de um arquivo de operações (apenas busca e inserção) (opção -e); 
-● Impressão das informações do índice, i.e., da árvore-B (opção -p).
-sendo programa o nome do arquivo executável do seu programa. Sempre que ativada, essa funcionalidade fará a
-leitura do arquivo games.dat para a construção do índice, i.e., inserção dos pares {chave, byte-offset} na árvore-B que
-deverá ser armazenada no arquivo btree.dat. Caso o arquivo btree.dat exista, ele deverá ser sobrescrito. Note que o
-formato do arquivo games.dat será sempre o mesmo, porém o número de registros nesse arquivo pode variar. Para
-simplificar o processamento do arquivo de registros, considere que ele sempre será fornecido corretamente (i.e., o
-seu programa não precisa verificar a integridade desse arquivo) e que ele armazenará o total de registros do arquivo
-no cabeçalho como um número inteiro de 4 bytes. Neste trabalho, não serão feitas remoções e, consequentemente,
-não haverá gerenciamento de espaços disponíveis.
-Ao final da criação do índice, o programa deverá apresentar uma mensagem na tela indicando se essa operação foi
-concluída com sucesso ou não.
-Dados os arquivos games.dat e btree.dat, o seu programa deverá executar as seguintes operações:
-• Busca de um jogo pelo IDENTIFICADOR;
-• Inserção de um novo jogo.
-As operações a serem realizadas em determinada execução serão especificadas em um arquivo de operações no
-mesmo formato utilizado no 1o trabalho. Dessa forma, o programa não possuirá interface com o usuário e executará
-as operações na sequência em que estiverem especificadas no arquivo de operações.
-A execução do arquivo de operações será acionada pela linha de comando, no seguinte formato:
-$ programa -c
-
-sendo programa o nome do arquivo executável do seu programa, -e a flag que sinaliza o modo de execução e
-nome_arquivo_operacoes o nome do arquivo que contém as operações a serem executadas. Para simplificar o
-processamento do arquivo de operações, considere que ele sempre será fornecido corretamente (i.e., o seu programa
-não precisa verificar a integridade desse arquivo).
-Observe que, para esse tipo de execução, os arquivos games.dat e btree.dat devem existir. Caso eles não existam, o
-programa deve apresentar uma mensagem de erro e terminar.
-'''
-
 # Constantes
 ORDEM = 5
 TAM_PAG = 4 + ((ORDEM-1) * 4) + ((ORDEM-1) * 4) + (ORDEM * 4)
@@ -85,32 +42,32 @@ def busca_na_pagina(chave: int, pag: Pagina) -> tuple[bool, int]:
     else:
         return False, pos
 
-def insere_na_arvore(chave: int, rrn_atual: int) -> tuple[int, int, bool]:
+def insere_na_arvore(chave: int, rrn_atual: int, byte_offset: int) -> tuple[int, int, bool, int]:
     '''
     Função que insere uma chave na árvore-B
     '''
     if rrn_atual == -1:
-        chave_promovida = chave
+        chave_pro = chave
         filho_d_pro = -1
-        return chave_promovida, filho_d_pro, True
+        return chave_pro, filho_d_pro, True, byte_offset
     else:
         pag = le_pagina(rrn_atual)
         achou, pos = busca_na_pagina(chave, pag)
     if achou:
         raise ValueError('Chave duplicada')
-    chave_promovida, filho_d_pro, promo = insere_na_arvore(chave, pag.filhos[pos])
+    chave_pro, filho_d_pro, promo, byte_offset = insere_na_arvore(chave, pag.filhos[pos], byte_offset)
     if not promo:
-        return -1, -1, False
+        return -1, -1, False, -1
     else:
         if pag.num_chaves < ORDEM - 1:
-            insere_na_pagina(chave_promovida, filho_d_pro, pag)
+            insere_na_pagina(chave_pro, filho_d_pro, pag, byte_offset)
             escreve_pagina(rrn_atual, pag)
-            return -1, -1, False
+            return -1, -1, False, -1
         else:
-            chave_promovida, filho_d_pro, pag, nova_pag = divide(chave_promovida, filho_d_pro, pag)
+            chave_pro, filho_d_pro, pag, nova_pag, byte_offset_pro = divide(chave_pro, filho_d_pro, pag, byte_offset)
             escreve_pagina(rrn_atual, pag)
             escreve_pagina(novo_rrn(), nova_pag)
-            return chave_promovida, filho_d_pro, True
+            return chave_pro, filho_d_pro, True, byte_offset_pro
 
 def le_pagina(rrn: int) -> Pagina:
     offset = TAM_CAB + (rrn * TAM_PAG)
@@ -137,33 +94,37 @@ def escreve_pagina(rrn: int, pag: Pagina) -> None:
         empacotados = struct.pack(f'<i{ORDEM - 1}i{ORDEM}i{ORDEM - 1}i', pag.num_chaves, *pag.chaves, *pag.filhos, *pag.offsets)
         arq_arvb.write(empacotados)
 
-def insere_na_pagina(chave: int, filho_direito: int, pag: Pagina) -> None:
+def insere_na_pagina(chave: int, filho_direito: int, pag: Pagina, byte_offset: int) -> None:
     '''
     Função que insere uma chave em uma página da árvore-B
     '''
     if pag.num_chaves >= ORDEM - 1:
         pag.chaves.append(-1)
         pag.filhos.append(-1)
+        pag.offsets.append(-1)
     
     i = pag.num_chaves
     
     while i > 0 and chave < pag.chaves[i - 1]:
         pag.chaves[i] = pag.chaves[i - 1]
         pag.filhos[i + 1] = pag.filhos[i]
+        pag.offsets[i] = pag.offsets[i - 1]
         i -= 1
     
     pag.chaves[i] = chave
     pag.filhos[i + 1] = filho_direito
+    pag.offsets[i] = byte_offset
     
     pag.num_chaves += 1
 
-def divide(chave: int, filho_direito: int, pag: Pagina) -> tuple[int, int, Pagina, Pagina]:
+def divide(chave: int, filho_direito: int, pag: Pagina, byte_offset: int) -> tuple[int, int, Pagina, Pagina, int]:
     '''
     Função que divide uma página da árvore-B
     '''
-    insere_na_pagina(chave, filho_direito, pag)
+    insere_na_pagina(chave, filho_direito, pag, byte_offset)
     meio = ORDEM // 2
     chave_promovida = pag.chaves[meio]
+    byte_offset_pro = pag.offsets[meio]
     filho_d_pro = novo_rrn()
 
     p_atual = Pagina()
@@ -193,7 +154,7 @@ def divide(chave: int, filho_direito: int, pag: Pagina) -> tuple[int, int, Pagin
     while len(p_nova.offsets) < ORDEM - 1:
         p_nova.offsets.append(-1)
 
-    return chave_promovida, filho_d_pro, p_atual, p_nova
+    return chave_promovida, filho_d_pro, p_atual, p_nova, byte_offset_pro
 
 def novo_rrn() -> int:
     '''
@@ -209,26 +170,34 @@ def gerenciador_de_insercao(raiz: int) -> int:
     '''
     Função que gerencia a inserção de chaves na árvore-B
     '''
-    arquivo_registros = 'games.dat'
+    arquivo_registros = 'games20.dat'
     with open(arquivo_registros, 'rb') as arq_registros:
         arq_registros.seek(4) # Pula o cabeçalho
+        byte_offset = arq_registros.tell()
         tam_registro = struct.unpack('h', arq_registros.read(2))[0] # Lê o tamanho do registro
-        chave = struct.unpack('h', arq_registros.read(2))[0] # Lê a chave do registro
+        registro = arq_registros.read(tam_registro) # Lê o registro
+        chave = int(registro.decode().split('|')[0])
         while chave: # Enquanto houver chaves
-            chave_promovida, filho_d_pro, promo = insere_na_arvore(chave, raiz) # Insere a chave na árvore
+            chave_promovida, filho_d_pro, promo, byte_offset_pro = insere_na_arvore(chave, raiz, byte_offset) # Insere a chave na árvore
             if promo: # Se houve promoção
-                p_nova = Pagina()
+                p_nova = Pagina() # Cria uma nova página
                 p_nova.num_chaves = 1
                 p_nova.chaves[0] = chave_promovida
                 p_nova.filhos[0] = raiz
                 p_nova.filhos[1] = filho_d_pro
+                p_nova.offsets[0] = byte_offset_pro
+                raiz = novo_rrn() # Atualiza a raiz
                 escreve_pagina(raiz, p_nova)
-                raiz = novo_rrn()
-            arq_registros.seek(tam_registro - 4, io.SEEK_CUR) # Pula o restante do registro
-            chave = struct.unpack('h', arq_registros.read(2))[0] # Lê a chave do próximo registro
+            byte_offset = arq_registros.tell()
+            prox_tam = arq_registros.read(2)
+            if not prox_tam:
+                break
+            tam_registro = struct.unpack('h', prox_tam)[0] # Lê o tamanho do registro
+            registro = arq_registros.read(tam_registro)
+            chave = int(registro.decode().split('|')[0])
     return raiz
 
-def principal() -> None:
+def cria_indice() -> None:
     '''
     Função responsável por abrir (ou criar) o arquivo da árvore-B e chamar o gerenciador
     '''
@@ -246,61 +215,88 @@ def principal() -> None:
         arq_arvb.seek(0)
         arq_arvb.write(struct.pack('<i', raiz))
 
-def executa_operacoes(arq_operacoes: io.BufferedRandom) -> None:
+    print('Índice "btree.dat" criado com sucesso!')
+
+# ---------------Execução do arquivo de operações (funcionalidade -e)------------------------
+def executa_operacoes(arq_operacoes: io.TextIOWrapper) -> None:
     '''
-    Função que executa as operações de busca e inserção de um arquivo de operações
+    Função que executa as operações de inserção e busca na árvore-B
     '''
     pass
 
-def imprime_arvore_b(arq_arvore: io.BufferedRandom) -> None:
+def inserir_registro(reg: str) -> None:
+    '''
+    Função auxiliar que insere um registro no final do arquivo de registros
+    '''
+    try:
+        with open('games20.dat', 'a+b') as arq_registros:
+            tam_registro = len(reg)
+            arq_registros.write(struct.pack('h', tam_registro))
+            arq_registros.write(reg.encode())
+    except FileNotFoundError:
+        print('Arquivo de registros não encontrado')
+# -------------------------------------------------------------------------------------------
+
+# -------------Impressão das informações da árvore-B (funcionalidade -p)---------------------
+def imprime_arvore_b(arq_arvb: io.BufferedRandom) -> None:
     '''
     Função que imprime a árvore-B
     '''
-    arq_arvore.seek(0)
-    raiz = struct.unpack('i', arq_arvore.read(4))[0]
+    arq_arvb.seek(0)
+    raiz = struct.unpack('i', arq_arvb.read(4))[0]
     if raiz == -1:
         print('Árvore vazia')
         return
     else:
         num_paginas = 0
-        while arq_arvore:
-            arq_arvore.seek(TAM_CAB + (num_paginas * TAM_PAG))
+        while arq_arvb:
+            arq_arvb.seek(TAM_CAB + (num_paginas * TAM_PAG))
             pagina = le_pagina(num_paginas)
             if num_paginas == raiz:
-                print('----------- Raiz -----------')
+                print('\n- - - - - - - - - - Raiz  - - - - - - - - - -')
+                print(f"Pagina {num_paginas}:")
                 imprime_pagina(pagina)
-                print('-----------------------------')
+                print('- - - - - - - - - - - - - - - - - - - - - - -')
             else:
+                print(f"\nPagina {num_paginas}:")
                 imprime_pagina(pagina)
-
             num_paginas += 1
     
 def imprime_pagina(pagina: Pagina) -> None:
     '''
     Função que imprime uma página da árvore-B
     '''
-    print('Número de chaves:', pagina.num_chaves)
     print('Chaves:', pagina.chaves)
-    print('Filhos:', pagina.filhos)
     print('Offsets:', pagina.offsets)
+    print('Filhos:', pagina.filhos)
+# ------------------------------------------------------------------------------------------
 
 def main() -> None:
     '''
     Função principal
     '''
-    if len(argv) < 2:
-        print('Uso: python3 arvore-b.py -c')
-        return
-    if argv[1] == '-c':
-        principal()
+    modoDeUso = '''Modo de uso: 
+    -> python lorenzo_zanetti_matheus_jacomini_2.py -c
+    -> python lorenzo_zanetti_matheus_jacomini_2.py -e <arquivo_de_operacoes>
+    -> python lorenzo_zanetti_matheus_jacomini_2.py -p'''
+    if len(argv) < 2 or len(argv) > 3:
+        raise TypeError("Número de argumentos inválido\n" + modoDeUso)
+    elif argv[1] == '-c':
+        cria_indice()
     elif argv[1] == '-e':
-        with open('operacoes.dat', 'rb') as arq_operacoes:
+        try:
+            arq_operacoes = open(argv[2], 'r')
             executa_operacoes(arq_operacoes)
+        except FileNotFoundError:
+            raise FileNotFoundError('Arquivo de operações não encontrado')
     elif argv[1] == '-p':
-        with open('btree.dat', 'rb') as arq_arvb:
+        try:
+            arq_arvb = open('btree.dat', 'rb')
             imprime_arvore_b(arq_arvb)
+        except FileNotFoundError:
+            raise FileNotFoundError('Arquivo da árvore-B não encontrado')
     else:
-        print('Opção inválida')
+        raise ValueError('Argumento inválido\n' + modoDeUso)
 
 if __name__ == '__main__':
     main()
