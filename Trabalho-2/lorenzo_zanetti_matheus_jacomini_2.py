@@ -4,7 +4,7 @@ from sys import argv
 import struct
 
 # Constantes
-ORDEM = 5
+ORDEM = 8
 TAM_PAG = 4 + ((ORDEM-1) * 4) + ((ORDEM-1) * 4) + (ORDEM * 4)
 TAM_CAB = 4
 
@@ -208,7 +208,7 @@ def cria_indice() -> None:
         arq_arvb.write(struct.pack(f'<{ORDEM - 1}i', *pag.offsets))
     
     # Insere as chaves dos registros do arquivo de registros no índice da árvore-B
-    with open('games20.dat', 'rb') as arq_registros:
+    with open('games.dat', 'rb') as arq_registros:
         qnt_registros = struct.unpack('i', arq_registros.read(4))[0] # Lê a quantidade de registros
         byte_offset = arq_registros.tell() # Lê o byte-offset do primeiro registro
         tam_registro = struct.unpack('h', arq_registros.read(2))[0] # Lê o tamanho do primeiro registro
@@ -244,6 +244,7 @@ def executa_operacoes(arq_operacoes: io.TextIOWrapper) -> None:
                 raiz = struct.unpack('<i', arq_arvb.read(4))[0]
             achou, _, _ = busca_na_arvore(chave, raiz)
             if achou:
+                print(f'Inserção do registro de chave "{chave}"')
                 print(f'Erro: chave "{chave}" já existente\n')
             else:
                 byte_offset = inserir_registro(registro)
@@ -259,7 +260,7 @@ def executa_operacoes(arq_operacoes: io.TextIOWrapper) -> None:
             if achou:
                 pag = le_pagina(rrn)
                 byte_offset = pag.offsets[pos]
-                with open('games20.dat', 'rb') as arq_registros:
+                with open('games.dat', 'rb') as arq_registros:
                     arq_registros.seek(byte_offset)
                     tam_registro = struct.unpack('h', arq_registros.read(2))[0]
                     registro = arq_registros.read(tam_registro).decode()
@@ -270,14 +271,14 @@ def executa_operacoes(arq_operacoes: io.TextIOWrapper) -> None:
                 print(f'Erro: registro nao encontrado!\n')
         linha = arq_operacoes.readline()
 
-    arq_operacoes.close()
+    arq_operacoes.close
 
 def inserir_registro(reg: str) -> int:
     '''
     Função auxiliar que insere um registro no final do arquivo de registros e retorna o byte-offset do registro inserido
     '''
     try:
-        with open('games20.dat', 'r+b') as arq_registros:
+        with open('games.dat', 'r+b') as arq_registros:
             # Escreve o registro no final do arquivo
             arq_registros.seek(0, io.SEEK_END)
             arq_registros.write(struct.pack('h', len(reg)))
