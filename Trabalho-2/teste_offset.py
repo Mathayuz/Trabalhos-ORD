@@ -1,0 +1,5 @@
+games = open("games.dat", "rb")
+games.seek(6075)
+tamanho = int.from_bytes(games.read(2), byteorder='little')
+print(tamanho)
+print(games.read(tamanho))
