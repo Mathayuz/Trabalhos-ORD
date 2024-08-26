@@ -3,7 +3,7 @@ import io
 from sys import argv
 import struct
 
-# Constantes
+# Constantes globais
 ORDEM = 5
 TAM_PAG = 4 + ((ORDEM-1) * 4) + ((ORDEM-1) * 4) + (ORDEM * 4)
 TAM_CAB = 4
@@ -224,7 +224,7 @@ def cria_indice() -> None:
             registro = arq_registros.read(tam_registro) # Lê o próximo registro
             chave = int(registro.decode().split('|')[0]) # Lê a chave do próximo registro
             qnt_registros -= 1
-    print('Índice "btree.dat" criado com sucesso!')
+    print('Índice "btree.dat" criado com sucesso!\n')
 # -------------------------------------------------------------------------------------------
 
 # ---------------Execução do arquivo de operações (funcionalidade -e)------------------------
@@ -270,6 +270,7 @@ def executa_operacoes(arq_operacoes: io.TextIOWrapper) -> None:
                 print(f'Busca pelo registro de chave "{chave}"')
                 print(f'Erro: registro nao encontrado!\n')
         linha = arq_operacoes.readline()
+    print('As operações do arquivo "op-teste.txt" foram executadas com sucesso!\n')
 
 def inserir_registro(reg: str) -> int:
     '''
